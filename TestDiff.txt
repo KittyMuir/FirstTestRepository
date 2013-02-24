@@ -1,0 +1,64 @@
+public with sharing class ReleaseFlights {
+	
+	public Opportunity CurrentOpportunity {get;set;}
+	
+	public List<Flight_Booking__c> listBooking {get;set;}
+ 
+	public ReleaseFlights(){
+		
+		CurrentOpportunity = new Opportunity();
+		
+		listBooking = new List<Flight_Booking__c>();
+			
+		if(ApexPages.CurrentPage().getParameters().get('id') != null){
+			
+			for(Opportunity o : [Select Id,O_Release_Flight_Date__c, Name From Opportunity WHere Id = : ApexPages.CurrentPage().getParameters().get('id')]){
+				CurrentOpportunity = o;
+			}	
+		}
+		
+						
+	}
+	
+	public PageReference DoLoad(){
+    	PageReference pr = null;
+    	
+    	listBooking = new List<Flight_Booking__c>();
+    	
+	    try{
+	  
+	      for(Flight_Booking__c b : [Select Id, Name, FB_Status__c, FB_Hold_Date__c From Flight_Booking__c 
+									Where FB_Opportunity__c = : CurrentOpportunity.Id  AND FB_Status__c NOT IN ('Quoted') Limit 1000]){
+			 
+			  
+      	  	 b.FB_Status__c = 'Quoted';
+      	  	 b.FB_Released_By__c = Userinfo.getUserId();
+      	  	 b.FB_Released_Date__c = system.now();
+      	  	 
+      	  	 listBooking.add(b);
+      	  	 
+      	  }	
+      	  	
+      	  if(listBooking.size() > 0){
+      	  	upsert listBooking;
+      	  }	
+      	  
+      	  CurrentOpportunity.O_Release_Flight_Date__c = system.now();
+      	  update CurrentOpportunity;
+      	  
+      		pr = new PageReference('/' + CurrentOpportunity.Id) ;
+      		
+	    }
+	    catch(Exception ex){
+	        ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR,ex.getMessage())); 
+	    }
+	    
+	    return pr;
+	 }
+ 	
+ 	 
+	 public PageReference DoCancel(){
+         return new PageReference('/' + CurrentOpportunity.Id) ;
+	 }
+	 
+}
